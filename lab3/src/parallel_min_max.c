@@ -40,18 +40,33 @@ int main(int argc, char **argv) {
         switch (option_index) {
           case 0:
             seed = atoi(optarg);
-            // your code here
-            // error handling
+
+            if (seed <= 0)
+            {
+              printf("seed must be a positive number\n");
+              return 1;
+            }
+
             break;
           case 1:
             array_size = atoi(optarg);
-            // your code here
-            // error handling
+
+            if (array_size <= 0)
+            {
+              printf("array_size must be a positive number\n");
+              return 1;
+            }
+
             break;
           case 2:
             pnum = atoi(optarg);
-            // your code here
-            // error handling
+
+            if (pnum <= 0)
+            {
+              printf("pnum must be a positive number");
+              return 1;
+            }
+
             break;
           case 3:
             with_files = true;
@@ -88,24 +103,58 @@ int main(int argc, char **argv) {
   GenerateArray(array, array_size, seed);
   int active_child_processes = 0;
 
+  // Выбираем какие индексы кому отдадим на обработку
+  int array_index_step = pnum < array_size ? array_size / pnum : 1;
+
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
 
+  FILE* file;
+  // дискрипторы файлов для чтения/записи
+  int** pipefd;
+
+  if (with_files)
+  {
+    file = fopen("tmp", "w");
+  }
+  else
+  {
+    pipefd = (int**)malloc(sizeof(int*) * pnum);
+  }
+
   for (int i = 0; i < pnum; i++) {
+    if (!with_files)
+    {
+      pipefd[i] = (int*)malloc(sizeof(int) * 2);
+
+      if (pipe(pipefd[i]) == -1)
+      {
+        printf("Error while create pipe");
+      }
+    }
+
     pid_t child_pid = fork();
     if (child_pid >= 0) {
       // successful fork
       active_child_processes += 1;
-      if (child_pid == 0) {
-        // child process
+      if (child_pid == 0)
+      {
+        // Выбираем кусок массива для обработки в зависимости от номера дочернего процесса
+        int start = array_index_step * (active_child_processes - 1);
+        // Не забываем, что в последнем куске может быть меньше элементов
+        int end = active_child_processes == pnum ? array_size :  array_index_step * + array_index_step;
+        struct MinMax result = GetMinMax(array, start, end);
 
-        // parallel somehow
-
-        if (with_files) {
-          // use files here
-        } else {
-          // use pipe here
+        if (with_files)
+        {
+          fwrite(&result, sizeof(struct MinMax), 1, file);
         }
+        else
+        {
+          write(pipefd[i][1], &result, sizeof(struct MinMax));
+          close(pipefd[i][1]);
+        }
+
         return 0;
       }
 
@@ -115,9 +164,16 @@ int main(int argc, char **argv) {
     }
   }
 
-  while (active_child_processes > 0) {
-    // your code here
+  // Теперь не пишем, а читаем из файла
+  if (with_files)
+  {
+    close(file);
+    file = fopen("tmp", "r");
+  }
 
+  // Ждем, пока все доработают
+  while (active_child_processes > 0) {
+    wait(NULL);
     active_child_processes -= 1;
   }
 
@@ -125,19 +181,41 @@ int main(int argc, char **argv) {
   min_max.min = INT_MAX;
   min_max.max = INT_MIN;
 
+
   for (int i = 0; i < pnum; i++) {
     int min = INT_MAX;
     int max = INT_MIN;
 
-    if (with_files) {
-      // read from files
-    } else {
-      // read from pipes
+    struct MinMax child_process_result;
+
+    if (with_files)
+    {
+      fread(&child_process_result, sizeof(struct MinMax), 1, file);
     }
+    else
+    {
+      read(pipefd[i][0], &child_process_result, sizeof(struct MinMax));
+      close(pipefd[i][0]);
+      // Не забываем о выделенной памяти
+      free(pipefd[i]);
+    }
+
+    min = child_process_result.min;
+    max = child_process_result.max;
 
     if (min < min_max.min) min_max.min = min;
     if (max > min_max.max) min_max.max = max;
   }
+
+  if (with_files)
+  {
+    fclose(file);
+  }
+  else
+  {
+    free(pipefd);
+  }
+
 
   struct timeval finish_time;
   gettimeofday(&finish_time, NULL);
