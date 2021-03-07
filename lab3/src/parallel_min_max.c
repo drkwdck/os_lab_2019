@@ -101,6 +101,7 @@ int main(int argc, char **argv) {
 
   int *array = malloc(sizeof(int) * array_size);
   GenerateArray(array, array_size, seed);
+
   int active_child_processes = 0;
 
   // Выбираем какие индексы кому отдадим на обработку
@@ -142,16 +143,18 @@ int main(int argc, char **argv) {
         // Выбираем кусок массива для обработки в зависимости от номера дочернего процесса
         int start = array_index_step * (active_child_processes - 1);
         // Не забываем, что в последнем куске может быть меньше элементов
-        int end = active_child_processes == pnum ? array_size :  array_index_step * + array_index_step;
+        int end = active_child_processes == pnum - 1 ? array_size :  array_index_step + array_index_step;
         struct MinMax result = GetMinMax(array, start, end);
 
         if (with_files)
         {
-          fwrite(&result, sizeof(struct MinMax), 1, file);
+          fwrite(&result.max, sizeof(int), 1, file);
+          fwrite(&result.min, sizeof(int), 1, file);
         }
         else
         {
-          write(pipefd[i][1], &result, sizeof(struct MinMax));
+          write(pipefd[i][1], &result.max, sizeof(int));
+          write(pipefd[i][1], &result.min, sizeof(int));
           close(pipefd[i][1]);
         }
 
@@ -190,11 +193,13 @@ int main(int argc, char **argv) {
 
     if (with_files)
     {
-      fread(&child_process_result, sizeof(struct MinMax), 1, file);
+      fread(&child_process_result.max, sizeof(int), 1, file);
+      fread(&child_process_result.min, sizeof(int), 1, file);
     }
     else
     {
-      read(pipefd[i][0], &child_process_result, sizeof(struct MinMax));
+      read(pipefd[i][0], &child_process_result.max, sizeof(int));
+      read(pipefd[i][0], &child_process_result.min, sizeof(int));
       close(pipefd[i][0]);
       // Не забываем о выделенной памяти
       free(pipefd[i]);
