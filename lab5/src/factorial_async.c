@@ -46,7 +46,7 @@ void *ThreadFact(void *args)
 
 int main(int argc, char **argv)
 {
-    int threads_num = -1;
+    int thread_count = -1;
     int mod = -1;
     int k = -1;
     int current_optind = optind ? optind : 1;
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
                     
         int option_index = 0;
         int c = getopt_long(argc, argv, "k:", options, &option_index);
-    
+
         if (c == -1)
         {
             break;
@@ -71,7 +71,7 @@ int main(int argc, char **argv)
                 switch (option_index)
                 {
                     case 0:
-                        threads_num = atoi(optarg);
+                        thread_count = atoi(optarg);
                         break;
                     case 1:
                         mod = atoi(optarg);
@@ -105,52 +105,45 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (mod == -1 || k == -1 || threads_num == -1) 
+    if (mod == -1 || k == -1 || thread_count == -1) 
     {
         printf("Usage: %s -k \"num\" --pnum \"num\" --mod \"num\" \n",
             argv[0]);
         return 1;
     }
 
-    // массив c несколькими элементами-идентификаторами потоков
-    pthread_t threads[threads_num];
+    pthread_t threads_array[thread_count];
 
-    struct FactArgs args[threads_num];
-    double block = (double) k / threads_num;
+    struct FactArgs args[thread_count];
+    int step =  k / thread_count;
     
-    // время начала подсчета
     struct timeval start_time;
     gettimeofday(&start_time, NULL);
 
-    for (int i = 0; i < threads_num; ++i)
+    for (int i = 0; i < thread_count; ++i)
     {
-        int begin = (int)(block * i) + 1;
-        int end = (int)(block * (i + 1));
+        int begin = step * i + 1;
+        int end = step * (i + 1);
         args[i].begin = begin;
         args[i].end = end;
         args[i].mod = mod;
-    }
 
-    for (int i = 0; i < threads_num; ++i)
-    {
-        if (pthread_create(&threads[i], NULL, ThreadFact, (void *)&args[i]))
+        if (pthread_create(&threads_array[i], NULL, ThreadFact, (void *)&args[i]))
         {
             printf("Error: pthread_create failed!\n");
             return 1;
         }
     }
 
-    for (int i = 0; i < threads_num; ++i)
+    for (int i = 0; i < thread_count; ++i)
     {
-        int fact = 1;
-        pthread_join(threads[i], (void **)&fact);
+        int part_of_factorial = 0;
+        pthread_join(threads_array[i], (void **)&part_of_factorial);
     }
 
-    // время конца подсчета
     struct timeval finish_time;
     gettimeofday(&finish_time, NULL);
 
-    // итоговое время подсчета
     double elapsed_time = (finish_time.tv_sec - start_time.tv_sec) * 1000.0;
     elapsed_time += (finish_time.tv_usec - start_time.tv_usec) / 1000.0;
 
