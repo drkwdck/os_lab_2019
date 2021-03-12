@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
   }
 
   if (seed == 0 || array_size == 0 || threads_num == 0) {
-    printf("Usage: %s --seed \"num\" --array_size \"num\" --pnum \"num\" \n",
+    printf("Usage: %s --seed \"num\" --array_size \"num\" --threads_num \"num\" \n",
            argv[0]);
     return 1;
   }
