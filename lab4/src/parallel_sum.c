@@ -1,9 +1,13 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+
 #include <sys/time.h>
+
 #include <pthread.h>
 #include <getopt.h>
+
 #include "utils.h"
 
 struct SumArgs {
@@ -16,11 +20,10 @@ int Sum(const struct SumArgs *args) {
   int sum = 0;
   int i = (*args).begin;
 
-  do
-  {
+  while(i <= (*args).end){
       sum += (*args).array[i];
+      i++;
   }
-  while (i++ <= (*args).end);
   
   return sum;
 }
@@ -35,8 +38,9 @@ int main(int argc, char **argv) {
   uint32_t threads_num = 0;
   uint32_t array_size = 0;
   uint32_t seed = 0;
+  pthread_t threads[threads_num];
 
-   while (1) {
+   while (true) {
     int current_optind = optind ? optind : 1;
 
     static struct option options[] = {{"seed", required_argument, 0, 0},
@@ -92,7 +96,11 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  pthread_t threads[threads_num];
+  if (seed == 0 || array_size == 0 || threads_num == 0) {
+    printf("Usage: %s --seed \"num\" --array_size \"num\" --pnum \"num\" \n",
+           argv[0]);
+    return 1;
+  }
 
   int *array = malloc(sizeof(int) * array_size);
   GenerateArray(array, array_size, seed);
@@ -100,16 +108,22 @@ int main(int argc, char **argv) {
   for (uint32_t i = 0; i < array_size; i++){
       printf(" %i ", array[i]);
   }
+
   printf("\n");
 
-  threads_num = threads_num >=  array_size ? 1 : threads_num;
   int array_index_step = array_size / threads_num;
+
+  if (array_index_step == 0){
+    threads_num = 1;
+    array_index_step = array_size - 1;
+  }
+
   struct SumArgs args[threads_num];
 
   for (uint32_t i = 0; i < threads_num; i++){
     args[i].array = array;
-    args[i].begin = i * array_index_step;
-    args[i].end = (i == threads_num - 2) ? array_size : (i + 1) * array_index_step;
+    args[i].begin = (i == 0) ? i*array_index_step : i*array_index_step + 1;
+    args[i].end = (i == threads_num - 1) ? array_size : (i + 1)*array_index_step;
   }
   
   struct timeval start_time;
