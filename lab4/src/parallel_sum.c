@@ -2,36 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
 #include <sys/time.h>
-
 #include <pthread.h>
 #include <getopt.h>
-
+#include "sum.h"
 #include "utils.h"
 
-struct SumArgs {
-  int *array;
-  int begin;
-  int end;
-};
-
-int Sum(const struct SumArgs *args) {
-  int sum = 0;
-  int i = (*args).begin;
-
-  while(i <= (*args).end){
-      sum += (*args).array[i];
-      i++;
-  }
-  
-  return sum;
-}
-
-void *ThreadSum(void *args) {
-  struct SumArgs *sum_args = (struct SumArgs *)args;
-  return (void *)(size_t)Sum(sum_args);
-}
 
 int main(int argc, char **argv) {
 
