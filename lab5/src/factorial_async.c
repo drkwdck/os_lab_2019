@@ -25,6 +25,7 @@ int Factorial(const struct FactArgs *args)
 
     for(int i = args->begin; i <= args->end; ++i)
     {
+
         fact *= i;
         fact %= args->mod;
     }
@@ -33,6 +34,7 @@ int Factorial(const struct FactArgs *args)
     result *= fact;
     result %= args->mod;
     pthread_mutex_unlock(&mutex);    
+    printf("result %d\n", result);
     return fact;
 }
 
@@ -114,31 +116,41 @@ int main(int argc, char **argv)
 
     pthread_t threads_array[thread_count];
 
-    struct FactArgs args[thread_count];
     int step =  k / thread_count;
     
     struct timeval start_time;
     gettimeofday(&start_time, NULL);
 
-    for (int i = 0; i < thread_count; ++i)
+    if (step > 2 && thread_count > 1)
     {
-        int begin = step * i + 1;
-        int end = step * (i + 1);
-        args[i].begin = begin;
-        args[i].end = end;
-        args[i].mod = mod;
+        struct FactArgs args[thread_count];
 
-        if (pthread_create(&threads_array[i], NULL, ThreadFact, (void *)&args[i]))
+        for (int i = 0; i < thread_count; ++i)
         {
-            printf("Error: pthread_create failed!\n");
-            return 1;
+            int begin = step * i + 1;
+            int end = thread_count - 1 == i ? k : step * (i + 1);
+            args[i].begin = begin;
+            args[i].end = end;
+            args[i].mod = mod;
+
+            if (pthread_create(&threads_array[i], NULL, ThreadFact, (void *)&args[i]))
+            {
+                printf("Error: pthread_create failed!\n");
+                return 1;
+            }
+        }
+
+        for (int i = 0; i < thread_count; ++i)
+        {
+            int part_of_factorial = 0;
+            pthread_join(threads_array[i], (void **)&part_of_factorial);
         }
     }
-
-    for (int i = 0; i < thread_count; ++i)
+    else
     {
-        int part_of_factorial = 0;
-        pthread_join(threads_array[i], (void **)&part_of_factorial);
+        struct FactArgs args = { .begin = 1, .end = k, .mod = mod };
+        Factorial(&args);
+
     }
 
     struct timeval finish_time;
