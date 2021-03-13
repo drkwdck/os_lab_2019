@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
         for (uint32_t i = 0; i < tnum; ++i) 
         {
           int begin = step * i + 1;
-          int end = step * (i + 1);
+          int end = tnum - 1 == i ? end : step * (i + 1);
           args[i].begin = begin;
           args[i].end = end;
           args[i].mod = mod;
